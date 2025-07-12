@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Classifier GUI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .main-content {
+            display: flex;
+            min-height: 600px;
+        }
+
+        .video-panel {
+            flex: 2;
+            padding: 30px;
+            border-right: 1px solid #dee2e6;
+        }
+
+        .controls-panel {
+            flex: 1;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .video-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .video-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .video-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        .video-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .current-label {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .category-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .category-btn {
+            padding: 12px 16px;
+            border: 2px solid #dee2e6;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .category-btn:hover {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .category-btn.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .navigation-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .nav-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .nav-btn.secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .export-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+        }
+
+        .export-btn {
+            width: 100%;
+            padding: 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .export-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 Video Classifier</h1>
+            <p>Manually classify YouTube videos into categories</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number" id="totalVideos">0</div>
+                <div class="stat-label">Total Videos</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number" id="classifiedVideos">0</div>
+                <div class="stat-label">Classified</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number" id="remainingVideos">0</div>
+                <div class="stat-label">Remaining</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="video-panel">
+                <div id="loading" class="loading">
+                    <h3>Loading videos...</h3>
+                </div>
+                
+                <div id="videoContent" style="display: none;">
+                    <div class="video-card">
+                        <div class="video-title" id="videoTitle"></div>
+                        <div class="video-description" id="videoDescription"></div>
+                        <div class="current-label" id="currentLabel"></div>
+                        
+                        <div class="category-buttons" id="categoryButtons">
+                            <!-- Category buttons will be generated here -->
+                        </div>
+                        
+                        <div class="navigation-buttons">
+                            <button class="nav-btn secondary" id="prevBtn" onclick="previousVideo()">← Previous</button>
+                            <button class="nav-btn primary" id="nextBtn" onclick="nextVideo()">Next →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-panel">
+                <h3>Progress</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                
+                <div id="progressText">0 / 0 videos classified</div>
+                
+                <div class="export-section">
+                    <h4>Export Data</h4>
+                    <p>Save your classifications to a new JSON file</p>
+                    <button class="export-btn" onclick="exportData()">💾 Export Classifications</button>
+                </div>
+                
+                <div id="message"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let videos = [];
+        let currentIndex = 0;
+        let classifications = {};
+        
+        const categories = [
+            "Entertainment",
+            "Study", 
+            "Motivation",
+            "How To",
+            "Money & Career",
+            "Gaming"
+        ];
+
+        // Load data on page load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch("http://localhost:8000/extras/data.json");
+                videos = await response.json();
+
+                console.log(videos);        // Check the full list
+                console.log(videos[0]);     // Check the first video
+
+                // Don't initialize classifications - start fresh
+                // classifications will be empty, so all videos start as "Unclassified"
+                
+                updateStats();
+                showVideo();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('videoContent').style.display = 'block';
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <div class="error">
+                        <h3>Error loading data</h3>
+                        <p>${error.message}</p>
+                        <p>Make sure data.json is in the same directory as this HTML file.</p>
+                    </div>
+                `;
+            }
+        });
+
+        function showVideo() {
+            if (currentIndex >= videos.length) {
+                document.getElementById('videoContent').innerHTML = `
+                    <div class="success">
+                        <h3>🎉 All videos classified!</h3>
+                        <p>You can now export your classifications.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const video = videos[currentIndex];
+            document.getElementById('videoTitle').textContent = video.title;
+            document.getElementById('videoDescription').textContent = video.description;
+            document.getElementById('currentLabel').textContent = classifications[currentIndex] || 'Unclassified';
+            
+            // Update category buttons
+            const categoryButtons = document.getElementById('categoryButtons');
+            categoryButtons.innerHTML = '';
+            
+            categories.forEach(category => {
+                const btn = document.createElement('button');
+                btn.className = 'category-btn';
+                btn.textContent = category;
+                btn.onclick = () => selectCategory(category);
+                
+                if (classifications[currentIndex] === category) {
+                    btn.classList.add('selected');
+                }
+                
+                categoryButtons.appendChild(btn);
+            });
+            
+            // Update navigation buttons
+            document.getElementById('prevBtn').disabled = currentIndex === 0;
+            document.getElementById('nextBtn').disabled = currentIndex === videos.length - 1;
+            
+            updateStats();
+        }
+
+        function selectCategory(category) {
+            classifications[currentIndex] = category;
+            document.getElementById('currentLabel').textContent = category;
+            
+            // Update button states
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('selected');
+                if (btn.textContent === category) {
+                    btn.classList.add('selected');
+                }
+            });
+            
+            updateStats();
+        }
+
+        function nextVideo() {
+            if (currentIndex < videos.length - 1) {
+                currentIndex++;
+                showVideo();
+            }
+        }
+
+        function previousVideo() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                showVideo();
+            }
+        }
+
+        function updateStats() {
+            const total = videos.length;
+            const classified = Object.keys(classifications).filter(key => classifications[key]).length;
+            const remaining = total - classified;
+            
+            document.getElementById('totalVideos').textContent = total;
+            document.getElementById('classifiedVideos').textContent = classified;
+            document.getElementById('remainingVideos').textContent = remaining;
+            
+            const progressPercent = (classified / total) * 100;
+            document.getElementById('progressFill').style.width = `${progressPercent}%`;
+            document.getElementById('progressText').textContent = `${classified} / ${total} videos classified`;
+        }
+
+        function exportData() {
+            // Create new data with classifications
+            const classifiedData = videos.map((video, index) => ({
+                ...video,
+                label: classifications[index] || video.label
+            }));
+            
+            // Create and download file
+            const dataStr = JSON.stringify(classifiedData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'classified_videos.json';
+            link.click();
+            
+            URL.revokeObjectURL(url);
+            
+            // Show success message
+            const messageDiv = document.getElementById('message');
+            messageDiv.innerHTML = `
+                <div class="success">
+                    <h4>✅ Export Successful!</h4>
+                    <p>classified_videos.json has been downloaded.</p>
+                </div>
+            `;
+            
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                nextVideo();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                previousVideo();
+            } else if (e.key >= '1' && e.key <= '6') {
+                e.preventDefault();
+                const categoryIndex = parseInt(e.key) - 1;
+                if (categoryIndex < categories.length) {
+                    selectCategory(categories[categoryIndex]);
+                }
+            }
+        });
+    </script>
+</body>
+</html> 
