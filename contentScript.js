@@ -1,6 +1,7 @@
 /* YouTube Profile Selector – content script */
 (function () {
   const CATEGORY_KEYWORDS = {
+    "All": [], // disables filtering
     "Entertainment": [
       "music",
       "comedy",
@@ -54,6 +55,7 @@
   };
 
   let selectedCategory = null;
+  let floatingBtn = null; // reference to floating switcher button
 
   /* ------------------------ storage helpers ----------------------- */
   function loadCategory() {
@@ -83,6 +85,14 @@
       "ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer"
     );
 
+    // If 'All' selected, reveal everything and reset badge
+    if (selectedCategory === "All") {
+      videoEls.forEach((el) => (el.style.display = ""));
+      updateHiddenBadge(0);
+      return;
+    }
+
+    let hiddenCount = 0;
     videoEls.forEach((el) => {
       // Cache classification on first inspection
       if (!el.dataset.ytpsProcessed) {
@@ -100,7 +110,10 @@
       const matches = el.dataset.ytpsCategory === selectedCategory;
       // Show matching, hide non-matching
       el.style.display = matches ? "" : "none";
+      if (!matches) hiddenCount += 1;
     });
+
+    updateHiddenBadge(hiddenCount);
   }
 
   /* -------------------- observe dynamic page loads -------------------- */
@@ -165,6 +178,12 @@
       "position:fixed;bottom:24px;right:24px;z-index:10000;padding:10px 14px;border-radius:50px;border:none;background:#cc0000;color:white;font-weight:bold;cursor:pointer;";
     btn.onclick = createModal;
     document.body.appendChild(btn);
+    floatingBtn = btn; // store reference
+  }
+
+  function updateHiddenBadge(count) {
+    if (!floatingBtn) return;
+    floatingBtn.textContent = count ? `Categories (${count})` : "Categories";
   }
 
   /* --------------------- cross-tab selection sync --------------------- */
