@@ -15,5 +15,11 @@
     "action": {
       "default_popup": "index.html",
       "default_icon": "logo.png"
-    }
+    },
+    "web_accessible_resources": [
+      {
+        "resources": ["model_params.json"],
+        "matches": ["https://www.youtube.com/*"]
+      }
+    ]
 }
