@@ -129,6 +129,7 @@
     const observer = new MutationObserver(
       debounce(() => {
         filterVideos();
+        cleanupContentDivs();
       }, 500)
     );
     observer.observe(document.body, { childList: true, subtree: true });
@@ -196,8 +197,22 @@
     });
   }
 
+  /* --------------------- cleanup functions --------------------- */
+  function cleanupContentDivs() {
+    // Delete all divs with id="content" and class="style-scope ytd-rich-section-renderer"
+    const contentDivs = document.querySelectorAll('div#content.style-scope.ytd-rich-section-renderer');
+    contentDivs.forEach(div => {
+      console.log("Removing content div", div);
+      div.remove();
+    });
+  }
+
   /* ----------------------------- init ----------------------------- */
   async function init() {
+    // Clean up content divs on load
+    cleanupContentDivs();
+    console.log("cleaning");
+    
     selectedCategory = await loadCategory();
     if (!selectedCategory) {
       createModal();
