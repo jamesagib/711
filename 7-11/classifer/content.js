@@ -274,6 +274,13 @@ class YouTubeClassifier {
             const titleElement = card.querySelector('#video-title') || card.querySelector('#video-title-link yt-formatted-string');
             const title = titleElement ? titleElement.textContent.trim() : '';
             
+            // Extract description - try multiple selectors like in contentScript.js
+            const descElement = card.querySelector('#description') || 
+                              card.querySelector('yt-formatted-string#description-text') ||
+                              card.querySelector('#description-text') ||
+                              card.querySelector('.ytd-video-secondary-info-renderer #description');
+            const description = descElement ? descElement.textContent.trim() : '';
+            
             // Extract channel name
             const channelElement = card.querySelector('#channel-name a') || card.querySelector('#channel-name yt-formatted-string a');
             const channel = channelElement ? channelElement.textContent.trim() : '';
@@ -291,14 +298,14 @@ class YouTubeClassifier {
                 timeAgo = timeElement ? timeElement.textContent.trim() : '';
             }
             
-            // Create description from available data
-            const description = `${channel} • ${views} • ${timeAgo}`.trim();
+            // Use actual description if available, otherwise fall back to metadata
+            const finalDescription = description || `${channel} • ${views} • ${timeAgo}`.trim();
             
             if (title) {
                 return {
                     id: this.generateVideoId(),
                     title: title,
-                    description: description || 'No description available',
+                    description: finalDescription || 'No description available',
                     channel: channel,
                     views: views,
                     timeAgo: timeAgo
@@ -389,11 +396,13 @@ class YouTubeClassifier {
             }
         }
         
-        // Try different selectors for description
+        // Try different selectors for description - same as contentScript.js
         const descSelectors = [
             '#description #description-text',
             '#description-text',
-            '.ytd-video-secondary-info-renderer #description'
+            '.ytd-video-secondary-info-renderer #description',
+            '#description',
+            'yt-formatted-string#description-text'
         ];
         
         let description = '';
