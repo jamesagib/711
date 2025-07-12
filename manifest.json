@@ -1,0 +1,19 @@
+{
+    "name": "7/11",
+    "description": "youtube focus tool",
+    "version": "1.0",
+    "manifest_version": 3,
+    "permissions": ["storage"],
+    "host_permissions": ["https://www.youtube.com/*"],
+    "content_scripts": [
+      {
+        "matches": ["https://www.youtube.com/*"],
+        "js": ["contentScript.js"],
+        "run_at": "document_idle"
+      }
+    ],
+    "action": {
+      "default_popup": "index.html",
+      "default_icon": "logo.png"
+    }
+}
