@@ -162,7 +162,7 @@ async function testPredictor() {
     
     try {
         // Load the model
-        await predictor.loadModel('../extras/model_params.json');
+        await predictor.loadModel('../extras/model_paramsv2.json');
         
         // Test predictions
         const testCases = [
