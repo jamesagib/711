@@ -111,33 +111,6 @@
   let predictor = null; // ML predictor instance
 
   /* ------------------------ ML Predictor ----------------------- */
-  
-  // New server-based classification function
-  async function classifyVideo(title, description) {
-    try {
-      const response = await fetch("http://localhost:8000/classify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          title: title,
-          description: description
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      return result; // contains { category: "...", scores: [...] }
-    } catch (error) {
-      console.error('Server classification failed:', error);
-      throw error;
-    }
-  }
-
   class VideoCategoryPredictor {
     constructor() {
       this.modelParams = null;
@@ -307,41 +280,28 @@
   }
 
   /* -------------------------- filtering --------------------------- */
-  async function categorizeVideo(text) {
-    // Try server-based classification first
-    try {
-      // Split text into title and description (simple heuristic)
-      const words = text.split(' ');
-      const title = words.slice(0, Math.min(10, words.length)).join(' '); // First 10 words as title
-      const description = words.slice(10).join(' ') || text; // Rest as description
-      
-      const result = await classifyVideo(title, description);
-      console.log(`Server classification for "${text}": ${result.category}`);
-      return result.category;
-    } catch (error) {
-      console.log('Server classification failed, trying local ML predictor:', error);
-      
-      // Fall back to local ML predictor if available
-      if (predictor && predictor.isModelLoaded()) {
-        try {
-          const result = predictor.predict(text);
-          console.log(`Local ML Prediction for "${text}": ${result.category} (confidence: ${result.confidence})`);
-          return result.category;
-        } catch (error) {
-          console.error('Local ML prediction failed, falling back to keywords:', error);
-        }
+  function categorizeVideo(text) {
+    // Use ML predictor if available, otherwise fall back to keyword matching
+    if (predictor && predictor.isModelLoaded()) {
+      try {
+        const result = predictor.predict(text);
+        // console.log(`ML Prediction for "${text}": ${result.category} (confidence: ${result.confidence})`);
+        return result.category;
+      } catch (error) {
+        console.error('ML prediction failed, falling back to keywords:', error);
+        // Fall back to keyword matching
       }
-
-      // Final fallback to keyword-based categorization
-      const lower = text.toLowerCase();
-      for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
-        if (kws.some((kw) => lower.includes(kw))) return cat;
-      }
-      return null;
     }
+
+    // Fallback to keyword-based categorization
+    const lower = text.toLowerCase();
+    for (const [cat, kws] of Object.entries(CATEGORY_KEYWORDS)) {
+      if (kws.some((kw) => lower.includes(kw))) return cat;
+    }
+    return null;
   }
 
-  async function filterVideos() {
+  function filterVideos() {
     if (!selectedCategory) return;
     const videoEls = document.querySelectorAll(
       "ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer"
@@ -355,9 +315,7 @@
     }
 
     let hiddenCount = 0;
-    
-    // Process videos asynchronously
-    for (const el of videoEls) {
+    videoEls.forEach((el) => {
       // Cache classification on first inspection
       if (!el.dataset.ytpsProcessed) {
         const titleEl =
@@ -367,14 +325,7 @@
           el.querySelector("yt-formatted-string#description-text");
         const title = titleEl ? titleEl.textContent : "";
         const desc = descEl ? descEl.textContent : "";
-        
-        try {
-          const category = await categorizeVideo(`${title} ${desc}`);
-          el.dataset.ytpsCategory = category || "";
-        } catch (error) {
-          console.error('Failed to categorize video:', error);
-          el.dataset.ytpsCategory = "";
-        }
+        el.dataset.ytpsCategory = categorizeVideo(`${title} ${desc}`) || "";
         el.dataset.ytpsProcessed = "1";
       }
 
@@ -382,7 +333,7 @@
       // Show matching, hide non-matching
       el.style.display = matches ? "" : "none";
       if (!matches) hiddenCount += 1;
-    }
+    });
 
     updateHiddenBadge(hiddenCount);
   }
@@ -398,8 +349,8 @@
 
   function attachMutationObserver() {
     const observer = new MutationObserver(
-      debounce(async () => {
-        await filterVideos();
+      debounce(() => {
+        filterVideos();
         cleanupContentDivs();
       }, 500)
     );
@@ -424,7 +375,6 @@
     heading.style.cssText = `color:${theme.heading};font-size:48px;margin:0 0 40px 0;`;
     overlay.appendChild(heading);
 
-
     // Build two rows: first contains 'All' + first 3 categories, rest on second row
     const rowTop = document.createElement('div');
     rowTop.style.cssText = "display:flex;gap:96px;justify-content:center;align-items:center;flex-wrap:nowrap;margin-bottom:20px;";
@@ -445,12 +395,11 @@
       const card = document.createElement("div");
       card.style.cssText =
         `cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:200px;`;
-
-      card.onclick = async () => {
+      card.onclick = () => {
         selectedCategory = cat;
         saveCategory(cat);
         overlay.remove();
-        await filterVideos();
+        filterVideos();
       };
 
       // Icon (skip for "All")
@@ -505,113 +454,6 @@
     btn.onclick = createModal;
     document.body.appendChild(btn);
     floatingBtn = btn; // store reference
-  }
-
-  /* --------------------------- masthead dropdown -------------------------- */
-  function createTopBarDropdown() {
-    if (document.getElementById('ytps-dropdown-btn')) return;
-
-    ensureNunitoFont();
-    const theme = getThemeColors();
-
-    // helper to create the dropdown once masthead & voice button are present
-    const attemptInsert = () => {
-      const voiceBtn = document.querySelector('#voice-search-button');
-      if (!voiceBtn || !voiceBtn.parentElement) return false;
-
-      // container right after voiceBtn
-      const container = document.createElement('div');
-      container.id = 'ytps-dropdown-container';
-      container.style.cssText = 'position:relative;margin-right:8px;font-family:"Nunito Sans",sans-serif;display:flex;align-items:center;';
-
-      const btn = document.createElement('button');
-      btn.id = 'ytps-dropdown-btn';
-      btn.textContent = 'Categories ▾';
-      btn.style.cssText = `padding:6px 16px;font-size:14px;border:none;border-radius:18px;background:${theme.chipBase};color:${theme.heading};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;height:32px;white-space:nowrap;`;
-
-      btn.onmouseenter = () => (btn.style.background = theme.chipSelected);
-      btn.onmouseleave = () => (btn.style.background = theme.chipBase);
-
-      const menu = document.createElement('div');
-      menu.id = 'ytps-dropdown-menu';
-      menu.style.cssText = `display:none;position:absolute;top:calc(100% + 6px);right:0;background:${theme.bg};padding:8px 0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:10000;min-width:200px;`;
-
-      const buildMenuItems = () => {
-        menu.innerHTML = '';
-        const cats = [
-          'All',
-          ...(allowedCategories && allowedCategories.length ? allowedCategories : DEFAULT_CATEGORIES),
-        ];
-        cats.forEach(cat => {
-          const item = document.createElement('div');
-          item.style.cssText = `display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:14px;color:${theme.heading};cursor:pointer;white-space:nowrap;`;
-
-          if (cat !== 'All' && CATEGORY_ICONS[cat]) {
-            const img = document.createElement('img');
-            img.src = CATEGORY_ICONS[cat];
-            img.style.width = '24px';
-            img.style.height = '24px';
-            img.style.objectFit = 'contain';
-            item.appendChild(img);
-          }
-
-          const span = document.createElement('span');
-          span.textContent = cat;
-          if (cat === selectedCategory) span.style.fontWeight = '700';
-          item.appendChild(span);
-
-          item.onmouseenter = () => (item.style.background = theme.chipBase);
-          item.onmouseleave = () => (item.style.background = 'transparent');
-
-          item.onclick = () => {
-            selectedCategory = cat;
-            saveCategory(cat);
-            filterVideos();
-            menu.style.display = 'none';
-            btn.textContent = `${cat} ▾`;
-            btn.style.background = theme.chipBase;
-          };
-
-          menu.appendChild(item);
-        });
-      };
-
-      buildMenuItems();
-
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
-      };
-
-      // clicking outside closes menu
-      document.addEventListener('click', (ev) => {
-        if (!container.contains(ev.target)) menu.style.display = 'none';
-      });
-
-      container.appendChild(btn);
-      container.appendChild(menu);
-      // Try to place inside the masthead buttons group (right side)
-      const buttonsGroup = document.querySelector('ytd-masthead #buttons');
-      if (buttonsGroup) {
-        const notificationsBtn = buttonsGroup.querySelector('#notifications-button');
-        if (notificationsBtn) {
-          buttonsGroup.insertBefore(container, notificationsBtn);
-        } else {
-          buttonsGroup.appendChild(container);
-        }
-      } else {
-        // fallback to voice position if buttons group not found
-        voiceBtn.parentElement.insertAdjacentElement('afterend', container);
-      }
-      return true;
-    };
-
-    // Try immediately, otherwise poll until masthead ready
-    if (!attemptInsert()) {
-      const intervalId = setInterval(() => {
-        if (attemptInsert()) clearInterval(intervalId);
-      }, 1000);
-    }
   }
 
   function updateHiddenBadge(count) {
@@ -725,10 +567,10 @@
 
   /* --------------------- cross-tab selection sync --------------------- */
   function initStorageChangeListener() {
-    chrome.storage.onChanged.addListener(async (changes, area) => {
+    chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local" && changes.selectedCategory) {
         selectedCategory = changes.selectedCategory.newValue;
-        await filterVideos();
+        filterVideos();
       }
     });
   }
@@ -746,7 +588,7 @@
     const sectionRenderers = document.querySelectorAll('ytd-rich-section-renderer.style-scope.ytd-rich-grid-renderer');
     console.log('Section renderers', sectionRenderers);
     sectionRenderers.forEach(section => {
-      //section.remove();
+      section.remove();
       // // Check for no element children (ignore comments/whitespace)
       // const hasElementChildren = Array.from(section.childNodes).some(
       //   node => node.nodeType === Node.ELEMENT_NODE
@@ -792,7 +634,7 @@
     // Apply previously selected filter (if still valid) so feed is filtered immediately
     if (selectedCategory && (
           !allowedCategories || allowedCategories.includes(selectedCategory) || selectedCategory === "All")) {
-      await filterVideos();
+      filterVideos();
     }
 
     // Always show the chooser modal on every visit so the user can pick a category each time
