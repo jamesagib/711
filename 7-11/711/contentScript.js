@@ -59,6 +59,52 @@
     (c) => c !== "All"
   );
 
+  // Theme helpers -------------------------------------------------
+  // Detect dark / light mode and provide color tokens so we can reuse them
+  const isDarkMode = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const getThemeColors = () => {
+    if (isDarkMode()) {
+      return {
+        bg: '#000000',
+        heading: '#ffffff',
+        label: '#757575',
+        chipBase: 'rgba(255,255,255,0.05)',
+        chipSelected: 'rgba(255,255,255,0.20)',
+        btnBg: '#ffffff',
+        btnText: '#000000'
+      };
+    }
+    return {
+      bg: '#ffffff',
+      heading: '#000000',
+      label: '#9E9E9E',
+      chipBase: 'rgba(0,0,0,0.05)',
+      chipSelected: 'rgba(0,0,0,0.15)',
+      btnBg: '#000000',
+      btnText: '#ffffff'
+    };
+  };
+
+  // Ensure Nunito Sans font is loaded once ---------------------------------
+  function ensureNunitoFont() {
+    if (document.getElementById('ytps-nunito-font')) return;
+    const link = document.createElement('link');
+    link.id = 'ytps-nunito-font';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&display=swap';
+    document.head.appendChild(link);
+  }
+
+  // Category icons (used in the regular chooser modal) ------------
+  const CATEGORY_ICONS = {
+    "Entertainment": chrome.runtime.getURL('assets/Entertainment.png'),
+    "Study": chrome.runtime.getURL('assets/Study.png'),
+    "Motivation": chrome.runtime.getURL('assets/Motivation.png'),
+    "Gaming": chrome.runtime.getURL('assets/Gaming.png'),
+    "How To": chrome.runtime.getURL('assets/How-To.png'),
+    "Money & Career": chrome.runtime.getURL('assets/Money & Career.png')
+  };
+
   let selectedCategory = null;
   let floatingBtn = null; // reference to floating switcher button
   let allowedCategories = null; // user-chosen preferred categories
@@ -315,14 +361,26 @@
   function createModal() {
     if (document.getElementById("ytps-modal")) return;
 
+    ensureNunitoFont();
+    const theme = getThemeColors();
+
     const overlay = document.createElement("div");
     overlay.id = "ytps-modal";
     overlay.style.cssText =
-      "position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:10000;color:white;font-family:Arial;";
+      `position:fixed;inset:0;background:${theme.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;overflow-y:auto;z-index:10000;font-family:'Nunito Sans',sans-serif;`;
 
-    const grid = document.createElement("div");
-    grid.style.cssText =
-      "display:grid;grid-template-columns:repeat(auto-fit, minmax(120px,1fr));gap:24px;max-width:800px;text-align:center;";
+    // Heading
+    const heading = document.createElement('h1');
+    heading.textContent = 'What would you like to watch?';
+    heading.style.cssText = `color:${theme.heading};font-size:48px;margin:0 0 40px 0;`;
+    overlay.appendChild(heading);
+
+    // Build two rows: first contains 'All' + first 3 categories, rest on second row
+    const rowTop = document.createElement('div');
+    rowTop.style.cssText = "display:flex;gap:96px;justify-content:center;align-items:center;flex-wrap:nowrap;margin-bottom:20px;";
+
+    const rowBottom = document.createElement('div');
+    rowBottom.style.cssText = "display:flex;gap:96px;justify-content:center;align-items:center;flex-wrap:wrap;";
 
     const list = [
       "All",
@@ -333,25 +391,56 @@
       ),
     ];
 
-    list.forEach((cat) => {
+    list.forEach((cat, idx) => {
       const card = document.createElement("div");
       card.style.cssText =
-        "cursor:pointer;padding:20px;border-radius:8px;background:rgba(255,255,255,0.1);font-size:18px;";
-      card.textContent = cat;
-      card.onmouseenter = () =>
-        (card.style.background = "rgba(255,255,255,0.3)");
-      card.onmouseleave = () =>
-        (card.style.background = "rgba(255,255,255,0.1)");
+        `cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:200px;`;
       card.onclick = () => {
         selectedCategory = cat;
         saveCategory(cat);
         overlay.remove();
         filterVideos();
       };
-      grid.appendChild(card);
+
+      // Icon (skip for "All")
+      if (cat !== "All" && CATEGORY_ICONS[cat]) {
+        const img = document.createElement('img');
+        img.src = CATEGORY_ICONS[cat];
+        img.style.width = '96px';
+        img.style.height = '96px';
+        img.style.objectFit = 'contain';
+        card.appendChild(img);
+      }
+
+      const label = document.createElement('span');
+      label.textContent = cat;
+      label.style.cssText = `font-size:32px;color:${theme.label};font-weight:600;`;
+      card.onmouseenter = () => (label.style.color = theme.heading);
+      card.onmouseleave = () => (label.style.color = theme.label);
+      card.appendChild(label);
+
+      if (idx < 4) {
+        rowTop.appendChild(card);
+      } else {
+        rowBottom.appendChild(card);
+      }
     });
 
-    overlay.appendChild(grid);
+    overlay.appendChild(rowTop);
+    if (rowBottom.childElementCount) {
+      overlay.appendChild(rowBottom);
+    }
+
+    // Manage preferences button ----------------------------------
+    const prefsBtn = document.createElement('button');
+    prefsBtn.textContent = 'MANAGE PREFERENCES';
+    prefsBtn.style.cssText = `margin-top:60px;padding:14px 32px;border:none;border-radius:8px;background:${theme.btnBg};color:${theme.btnText};font-weight:700;cursor:pointer;font-size:16px;`;
+    prefsBtn.onclick = () => {
+      overlay.remove();
+      showPreferenceOverlay();
+    };
+    overlay.appendChild(prefsBtn);
+
     document.body.appendChild(overlay);
   }
 
@@ -402,10 +491,13 @@
     return new Promise((resolve) => {
       if (document.getElementById("ytps-pref-overlay")) return; // prevent dupes
 
+      ensureNunitoFont();
+      const theme = getThemeColors();
+
       const overlay = document.createElement("div");
       overlay.id = "ytps-pref-overlay";
       overlay.style.cssText =
-        "position:fixed;inset:0;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;color:white;font-family:Arial;text-align:center;";
+        `position:fixed;inset:0;background:${theme.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;z-index:10000;color:${theme.heading};font-family:'Nunito Sans',sans-serif;text-align:center;`;
 
       const title = document.createElement("h1");
       title.textContent = "Welcome to 7/11";
@@ -416,10 +508,11 @@
       subtitle.textContent = "What do you usually watch? (pick all that apply)";
       subtitle.style.marginBottom = "32px";
       subtitle.style.fontSize = "20px";
+      subtitle.style.color = theme.label;
 
       const grid = document.createElement("div");
       grid.style.cssText =
-        "display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;max-width:900px;margin-bottom:40px;";
+        "display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:32px;max-width:960px;width:100%;justify-items:center;";
 
       const tmpSelection = new Set();
 
@@ -427,15 +520,15 @@
         const chip = document.createElement("div");
         chip.textContent = cat;
         chip.style.cssText =
-          "padding:16px;border-radius:24px;background:rgba(255,255,255,0.1);cursor:pointer;transition:background 0.2s;font-size:18px;";
+          `min-width:240px;padding:20px 32px;border-radius:32px;background:${theme.chipBase};cursor:pointer;transition:background 0.2s;font-size:24px;color:${theme.heading};font-weight:600;text-align:center;`;
 
         chip.onclick = () => {
           if (tmpSelection.has(cat)) {
             tmpSelection.delete(cat);
-            chip.style.background = "rgba(255,255,255,0.1)";
+            chip.style.background = theme.chipBase;
           } else {
             tmpSelection.add(cat);
-            chip.style.background = "rgba(255,255,255,0.3)";
+            chip.style.background = theme.chipSelected;
           }
           doneBtn.disabled = tmpSelection.size === 0;
         };
@@ -444,10 +537,10 @@
       });
 
       const doneBtn = document.createElement("button");
-      doneBtn.textContent = "✓ Done";
+      doneBtn.textContent = "Done";
       doneBtn.disabled = true;
       doneBtn.style.cssText =
-        "padding:14px 28px;border:none;border-radius:4px;background:white;color:black;font-weight:bold;cursor:pointer;opacity:0.6;";
+        `padding:14px 40px;border:none;border-radius:8px;background:${theme.btnBg};color:${theme.btnText};font-weight:700;cursor:pointer;opacity:0.6;font-size:18px;`;
 
       doneBtn.onclick = () => {
         if (tmpSelection.size === 0) return;
@@ -538,11 +631,14 @@
 
     selectedCategory = await loadCategory();
 
-    if (!selectedCategory || (allowedCategories && !allowedCategories.includes(selectedCategory) && selectedCategory !== "All")) {
-      createModal();
-    } else {
+    // Apply previously selected filter (if still valid) so feed is filtered immediately
+    if (selectedCategory && (
+          !allowedCategories || allowedCategories.includes(selectedCategory) || selectedCategory === "All")) {
       filterVideos();
     }
+
+    // Always show the chooser modal on every visit so the user can pick a category each time
+    createModal();
 
     createFloatingButton();
     attachMutationObserver();

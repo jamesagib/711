@@ -20,6 +20,10 @@
       {
         "resources": ["model_params.json"],
         "matches": ["https://www.youtube.com/*"]
+      },
+      {
+        "resources": ["assets/*"],
+        "matches": ["https://www.youtube.com/*"]
       }
     ]
 }
