@@ -239,7 +239,7 @@
     if (predictor && predictor.isModelLoaded()) {
       try {
         const result = predictor.predict(text);
-        console.log(`ML Prediction for "${text}": ${result.category} (confidence: ${result.confidence})`);
+        // console.log(`ML Prediction for "${text}": ${result.category} (confidence: ${result.confidence})`);
         return result.category;
       } catch (error) {
         console.error('ML prediction failed, falling back to keywords:', error);
@@ -489,6 +489,29 @@
     contentDivs.forEach(div => {
       console.log("Removing content div", div);
       div.remove();
+    });
+
+    // Delete all <ytd-rich-section-renderer class="style-scope ytd-rich-grid-renderer"> that have no element children and have flex=0
+    const sectionRenderers = document.querySelectorAll('ytd-rich-section-renderer.style-scope.ytd-rich-grid-renderer');
+    console.log('Section renderers', sectionRenderers);
+    sectionRenderers.forEach(section => {
+      section.remove();
+      // // Check for no element children (ignore comments/whitespace)
+      // const hasElementChildren = Array.from(section.childNodes).some(
+      //   node => node.nodeType === Node.ELEMENT_NODE
+      // );
+      // // Check for flex=0 (attribute or style)
+      // const flexAttr = section.getAttribute('flex');
+      // const flexStyle = section.style.flex;
+      // const isFlexZero = (flexAttr === '0') || (flexStyle === '0' || flexStyle === '0 0 0%');
+      // if (isFlexZero) {
+      //   console.log('Section renderer has flex=0', section);
+      //   section.remove();
+      // }
+      // if (!hasElementChildren && isFlexZero) {
+      //   console.log('Removing empty section renderer', section);
+      //   section.remove();
+      // }
     });
   }
 
