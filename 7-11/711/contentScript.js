@@ -424,6 +424,7 @@
     heading.style.cssText = `color:${theme.heading};font-size:48px;margin:0 0 40px 0;`;
     overlay.appendChild(heading);
 
+
     // Build two rows: first contains 'All' + first 3 categories, rest on second row
     const rowTop = document.createElement('div');
     rowTop.style.cssText = "display:flex;gap:96px;justify-content:center;align-items:center;flex-wrap:nowrap;margin-bottom:20px;";
@@ -444,6 +445,7 @@
       const card = document.createElement("div");
       card.style.cssText =
         `cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:200px;`;
+
       card.onclick = async () => {
         selectedCategory = cat;
         saveCategory(cat);
@@ -503,6 +505,113 @@
     btn.onclick = createModal;
     document.body.appendChild(btn);
     floatingBtn = btn; // store reference
+  }
+
+  /* --------------------------- masthead dropdown -------------------------- */
+  function createTopBarDropdown() {
+    if (document.getElementById('ytps-dropdown-btn')) return;
+
+    ensureNunitoFont();
+    const theme = getThemeColors();
+
+    // helper to create the dropdown once masthead & voice button are present
+    const attemptInsert = () => {
+      const voiceBtn = document.querySelector('#voice-search-button');
+      if (!voiceBtn || !voiceBtn.parentElement) return false;
+
+      // container right after voiceBtn
+      const container = document.createElement('div');
+      container.id = 'ytps-dropdown-container';
+      container.style.cssText = 'position:relative;margin-right:8px;font-family:"Nunito Sans",sans-serif;display:flex;align-items:center;';
+
+      const btn = document.createElement('button');
+      btn.id = 'ytps-dropdown-btn';
+      btn.textContent = 'Categories ▾';
+      btn.style.cssText = `padding:6px 16px;font-size:14px;border:none;border-radius:18px;background:${theme.chipBase};color:${theme.heading};cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;height:32px;white-space:nowrap;`;
+
+      btn.onmouseenter = () => (btn.style.background = theme.chipSelected);
+      btn.onmouseleave = () => (btn.style.background = theme.chipBase);
+
+      const menu = document.createElement('div');
+      menu.id = 'ytps-dropdown-menu';
+      menu.style.cssText = `display:none;position:absolute;top:calc(100% + 6px);right:0;background:${theme.bg};padding:8px 0;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:10000;min-width:200px;`;
+
+      const buildMenuItems = () => {
+        menu.innerHTML = '';
+        const cats = [
+          'All',
+          ...(allowedCategories && allowedCategories.length ? allowedCategories : DEFAULT_CATEGORIES),
+        ];
+        cats.forEach(cat => {
+          const item = document.createElement('div');
+          item.style.cssText = `display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:14px;color:${theme.heading};cursor:pointer;white-space:nowrap;`;
+
+          if (cat !== 'All' && CATEGORY_ICONS[cat]) {
+            const img = document.createElement('img');
+            img.src = CATEGORY_ICONS[cat];
+            img.style.width = '24px';
+            img.style.height = '24px';
+            img.style.objectFit = 'contain';
+            item.appendChild(img);
+          }
+
+          const span = document.createElement('span');
+          span.textContent = cat;
+          if (cat === selectedCategory) span.style.fontWeight = '700';
+          item.appendChild(span);
+
+          item.onmouseenter = () => (item.style.background = theme.chipBase);
+          item.onmouseleave = () => (item.style.background = 'transparent');
+
+          item.onclick = () => {
+            selectedCategory = cat;
+            saveCategory(cat);
+            filterVideos();
+            menu.style.display = 'none';
+            btn.textContent = `${cat} ▾`;
+            btn.style.background = theme.chipBase;
+          };
+
+          menu.appendChild(item);
+        });
+      };
+
+      buildMenuItems();
+
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+      };
+
+      // clicking outside closes menu
+      document.addEventListener('click', (ev) => {
+        if (!container.contains(ev.target)) menu.style.display = 'none';
+      });
+
+      container.appendChild(btn);
+      container.appendChild(menu);
+      // Try to place inside the masthead buttons group (right side)
+      const buttonsGroup = document.querySelector('ytd-masthead #buttons');
+      if (buttonsGroup) {
+        const notificationsBtn = buttonsGroup.querySelector('#notifications-button');
+        if (notificationsBtn) {
+          buttonsGroup.insertBefore(container, notificationsBtn);
+        } else {
+          buttonsGroup.appendChild(container);
+        }
+      } else {
+        // fallback to voice position if buttons group not found
+        voiceBtn.parentElement.insertAdjacentElement('afterend', container);
+      }
+      return true;
+    };
+
+    // Try immediately, otherwise poll until masthead ready
+    if (!attemptInsert()) {
+      const intervalId = setInterval(() => {
+        if (attemptInsert()) clearInterval(intervalId);
+      }, 1000);
+    }
   }
 
   function updateHiddenBadge(count) {
