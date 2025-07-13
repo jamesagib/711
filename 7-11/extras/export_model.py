@@ -4,13 +4,17 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import LinearSVC
 from sklearn.pipeline import make_pipeline
 
-# Load the data
 with open('new_data.json', 'r') as f:
     all_videos = json.load(f)
 
-# Prepare the data
 texts = [video['title'] + ' ' + video['description'] for video in all_videos]
 labels = [video['label'] for video in all_videos]
+
+with open('datav2.json', 'r') as f:
+    all_videos = json.load(f)
+
+texts += [video['title'] for video in all_videos]
+labels += [video['label'] for video in all_videos]
 
 # Create and fit the model
 model = make_pipeline(TfidfVectorizer(), LinearSVC())
@@ -52,7 +56,7 @@ export_data = {
 }
 
 # Save to JSON file
-with open('model_paramsv2.json', 'w') as f:
+with open('model_paramsv3.json', 'w') as f:
     json.dump(export_data, f, indent=2)
 
 print("Model exported to model_params.json")
