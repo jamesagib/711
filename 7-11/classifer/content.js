@@ -2,7 +2,7 @@
 
 class YouTubeClassifier {
     constructor() {
-        this.categories = ["Entertainment", "Study", "Motivation", "How To", "Money & Career", "Gaming", "Poltics"];
+        this.categories = ["Entertainment", "Study", "Motivation", "How To", "Money & Career", "Gaming", "Politics"];
         this.classifiedVideos = [];
         this.isInterfaceVisible = false;
         this.init();
